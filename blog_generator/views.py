@@ -73,8 +73,12 @@ def yt_title(link):
 
 def download_audio(link):
     try:
-        yt = YouTube(clean_link(link))
-        logger.info(f"Downloading audio for YouTube link: {link}")
+        clean_url = clean_link(link)
+        if not clean_url:
+            return None
+        
+        yt = YouTube(clean_url)
+        logger.info(f"Downloading audio for YouTube link: {clean_url}")
         video = yt.streams.filter(only_audio=True).first()
         if not video:
             logger.error("No audio stream found for the provided YouTube link.")
@@ -89,9 +93,16 @@ def download_audio(link):
         return None
 
 def clean_link(link):
-    parsed_url = urlparse(link)
-    clean_url = f"{parsed_url.scheme}://{parsed_url.netloc}{parsed_url.path}"
-    return clean_url
+    try:
+        parsed_url = urlparse(link)
+        clean_url = f"{parsed_url.scheme}://{parsed_url.netloc}{parsed_url.path}"
+        return clean_url
+    except Exception as e:
+        logger.error(f"Error cleaning YouTube link: {e}")
+        return None
+    
+print(clean_link("https://youtu.be/L7CHZ-8g4Jg?si=QPCvf7ryGXsOn9ce"))
+
 
 def get_transcription(link):
     audio_file = download_audio(link)
@@ -121,6 +132,17 @@ def generate_blog_from_transcription(transcription):
     except Exception as e:
         logger.error(f"Error generating blog from transcription: {e}")
         return None
+
+def blog_list(request):
+    blog_articles = BlogPost.objects.filter(user=request.user)
+    render(request, "all-blogs.html", {'blog_articles': blog_articles})
+    
+def blog_details(request, pk):
+    blog_article_detail = BlogPost.objects.get(id=pk)
+    if request.user == blog_article_detail.user:
+        return render(request, 'blog-details.html', {'blog_article_detail': blog_article_detail})
+    else:
+        return redirect('/')
 
 def user_login(request):
     if request.method == 'POST':
